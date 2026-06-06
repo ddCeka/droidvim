@@ -269,7 +269,7 @@ abstract class BaseTextRenderer implements TextRenderer {
             0xffffffd7,
             0xffffffff,
 
-        // 24 grey scale ramp
+            // 24 grey scale ramp
             0xff080808,
             0xff121212,
             0xff1c1c1c,
@@ -307,9 +307,10 @@ abstract class BaseTextRenderer implements TextRenderer {
     private final Path mAltCursor;
     private final Path mCtrlCursor;
     private final Path mFnCursor;
-    private RectF mTempSrc;
-    private RectF mTempDst;
-    private Matrix mScaleMatrix;
+    private final Path mCursorFrame;
+    private final RectF mTempSrc;
+    private final RectF mTempDst;
+    private final Matrix mScaleMatrix;
     private float mLastCharWidth;
     private float mLastCharHeight;
     private static final Matrix.ScaleToFit mScaleType = Matrix.ScaleToFit.FILL;
@@ -339,11 +340,11 @@ abstract class BaseTextRenderer implements TextRenderer {
 
         mCopyRedToAlphaPaint = new Paint();
         ColorMatrix cm = new ColorMatrix();
-        cm.set(new float[] {
+        cm.set(new float[]{
                 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0,
-                1, 0, 0, 0, 0 });
+                1, 0, 0, 0, 0});
         mCopyRedToAlphaPaint.setColorFilter(new ColorMatrixColorFilter(cm));
 
         mShiftCursor = new Path();
@@ -359,6 +360,13 @@ abstract class BaseTextRenderer implements TextRenderer {
         mCtrlCursor.moveTo(0.0f, 0.00f);
         mCtrlCursor.lineTo(1.0f, 0.5f);
         mCtrlCursor.lineTo(0.0f, 1.00f);
+
+        mCursorFrame = new Path();
+        mCursorFrame.moveTo(0.0f, 0.00f);
+        mCursorFrame.lineTo(0.0f, 1.0f);
+        mCursorFrame.lineTo(1.0f, 1.00f);
+        mCursorFrame.lineTo(1.0f, 0.00f);
+        mCursorFrame.lineTo(0.0f, 0.00f);
 
         mFnCursor = new Path();
         mFnCursor.moveTo(1.0f, 0.00f);
@@ -376,6 +384,24 @@ abstract class BaseTextRenderer implements TextRenderer {
         mReverseVideo = reverseVideo;
     }
 
+    static float mCursorHeight = 1.0f;
+    static int mCursorHeightMode = 0;
+    static int mCursorHeightModeDefault = mCursorHeightMode;
+
+    static public void setCursorHeightModeDefault(int cursorHeight) {
+        mCursorHeightModeDefault = cursorHeight;
+        setCursorHeightMode(cursorHeight);
+    }
+
+    static public void setCursorHeightMode(int cursorHeight) {
+        mCursorHeightMode = cursorHeight;
+        mCursorHeight = (mCursorHeightMode == 1 || mCursorHeightMode == 3) ? 3.0f : 1.0f;
+    }
+
+    static public int getCursorHeightMode() {
+        return mCursorHeightModeDefault;
+    }
+
     private void setDefaultColors(ColorScheme scheme) {
         mPalette = cloneDefaultColors();
         mPalette[TextStyle.ciForeground] = scheme.getForeColor();
@@ -391,10 +417,11 @@ abstract class BaseTextRenderer implements TextRenderer {
         return clone;
     }
 
-    protected void drawCursorImp(Canvas canvas, float x, float y, float charWidth, float charHeight,
-            int cursorMode) {
+    protected void drawCursorImp(Canvas canvas, float x, float y, float charWidth, float charHeight, int cursorMode) {
         if (cursorMode == 0) {
-            canvas.drawRect(x,  y - charHeight, x + charWidth, y, mCursorScreenPaint);
+            float cursorWidth = charWidth;
+            if (mCursorHeightMode >= 4) charWidth = charWidth / 5.0f;
+            canvas.drawRect(x, y - charHeight / mCursorHeight, x + charWidth, y, mCursorScreenPaint);
             return;
         }
 
@@ -425,6 +452,7 @@ abstract class BaseTextRenderer implements TextRenderer {
             drawCursorHelper(workCanvas, mAltCursor, cursorMode, MODE_ALT_SHIFT);
             drawCursorHelper(workCanvas, mCtrlCursor, cursorMode, MODE_CTRL_SHIFT);
             drawCursorHelper(workCanvas, mFnCursor, cursorMode, MODE_FN_SHIFT);
+            drawCursorHelper(workCanvas, mCursorFrame, MODE_ON, 0);
 
             mCursorBitmap.eraseColor(0);
             Canvas bitmapCanvas = new Canvas(mCursorBitmap);
@@ -436,12 +464,12 @@ abstract class BaseTextRenderer implements TextRenderer {
 
     private void drawCursorHelper(Canvas canvas, Path path, int mode, int shift) {
         switch ((mode >> shift) & MODE_MASK) {
-        case MODE_ON:
-            canvas.drawPath(path, mCursorStrokePaint);
-            break;
-        case MODE_LOCKED:
-            canvas.drawPath(path, mCursorPaint);
-            break;
+            case MODE_ON:
+                canvas.drawPath(path, mCursorStrokePaint);
+                break;
+            case MODE_LOCKED:
+                canvas.drawPath(path, mCursorPaint);
+                break;
         }
     }
 }

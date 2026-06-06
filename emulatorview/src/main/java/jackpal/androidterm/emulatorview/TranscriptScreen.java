@@ -71,6 +71,10 @@ class TranscriptScreen implements Screen {
         mData.blockSet(0, 0, mColumns, mScreenRows, ' ', style);
     }
 
+    public int getTotalRows() {
+        return mTotalRows;
+    }
+
     public void setColorScheme(ColorScheme scheme) {
         mData.setDefaultStyle(TextStyle.kNormalTextStyle);
     }
@@ -96,8 +100,6 @@ class TranscriptScreen implements Screen {
      * @param x X coordinate (also known as column)
      * @param y Y coordinate (also known as row)
      * @param codePoint Unicode codepoint to store
-     * @param foreColor the foreground color
-     * @param backColor the background color
      */
     public void set(int x, int y, int codePoint, int style) {
         mData.setChar(x, y, codePoint, style);
@@ -153,6 +155,11 @@ class TranscriptScreen implements Screen {
         mData.blockSet(sx, sy, w, h, val, style);
     }
 
+    static private int mForceFlush = 128;
+    static public final void setForceFlush(int chr) {
+        mForceFlush = chr;
+    }
+
     /**
      * Draw a row of text. Out-of-bounds rows are blank, not errors.
      *
@@ -161,7 +168,7 @@ class TranscriptScreen implements Screen {
      * @param x The x coordinate origin of the drawing
      * @param y The y coordinate origin of the drawing
      * @param renderer The renderer to use to draw the text
-     * @param cx the cursor X coordinate, -1 means don't draw it
+     * @param curx the cursor X coordinate, -1 means don't draw it
      * @param selx1 the text selection start X coordinate
      * @param selx2 the text selection end X coordinate, if equals to selx1 don't draw selection
      * @param imeText current IME text, to be rendered at cursor
@@ -273,7 +280,7 @@ class TranscriptScreen implements Screen {
             runWidth += width;
             nextColumn += width;
             index += incr;
-            if (width > 1) {
+            if (line[index-incr] >= mForceFlush) {
                 /* We cannot draw two or more East Asian wide characters in the
                    same run, because we need to make each wide character take
                    up two columns, which may not match the font's idea of the
@@ -300,28 +307,38 @@ class TranscriptScreen implements Screen {
             if ((imeColor <= IME_UNDERLINE) || (imeSpannableString == null)) {
                 int underline = imeSpannableString == null ? 0 : splitComposingText(imeSpannableString);
                 int textStyle = underline == 0 ? TextStyle.fxUnderline : TextStyle.fxNormal;
-                if (imeColor == IME_NONE) {
+                int fg = 257;
+                int bg = 256;
+                boolean selectionStyle = true;
+                if (imeSpannableString == null) {
+                    selectionStyle = false;
+                } else if (imeColor == IME_NONE) {
                     underline = 0;
                     textStyle = TextStyle.fxNormal;
                 }
 
                 renderer.drawTextRun(canvas, x, y, imePosition, imeLength, imeText.toCharArray(),
-                        imeOffset, imeLength, true, TextStyle.encode(0x0f, 0x00, textStyle),
+                        imeOffset, imeLength, selectionStyle, TextStyle.encode(fg, bg, textStyle),
                         -1, 0, 0, 0, 0);
                 if (underline > 0) {
                     imeText = imeText.substring(0, underline);
                     int uimeLength = Math.min(columns, imeText.length());
                     int uimeOffset = imeText.length() - uimeLength;
                     renderer.drawTextRun(canvas, x, y, imePosition, imeLength, imeText.toCharArray(),
-                            uimeOffset, uimeLength, true, TextStyle.encode(0x0f, 0x00, TextStyle.fxUnderline),
+                            uimeOffset, uimeLength, selectionStyle, TextStyle.encode(fg, bg, TextStyle.fxUnderline),
                             -1, 0, 0, 0, 0);
                 }
             } else {
-                // FIXME:
                 int effect = TextStyle.fxUnderline;
-                if (imeColor == IME_GOOGLE) effect |= TextStyle.fxImeBackground;
+                int fg = 257;
+                int bg = 256;
+                if (imeColor == IME_GOOGLE) {
+                    fg = 0x0f;
+                    bg = 0x00;
+                    effect |= TextStyle.fxImeBackground;
+                }
                 renderer.drawTextRun(canvas, x, y, imePosition, imeLength, imeText.toCharArray(),
-                        imeOffset, imeLength, true, TextStyle.encode(0x0f, 0x00, effect),
+                        imeOffset, imeLength, true, TextStyle.encode(fg, bg, effect),
                         -1, 0, 0, 0, 0);
                 TextPaint paint = new TextPaint();
                 int length = imeSpannableString.length();
@@ -338,15 +355,16 @@ class TranscriptScreen implements Screen {
 
                     int start = imeSpannableString.getSpanStart(style);
                     int end = imeSpannableString.getSpanEnd(style);
+                    if (start == -1 || end == -1) continue;
                     if (imeColor != IME_GOOGLE && (start == 0 && end == length)) {
-                        if (imeColor == IME_ATOK) {
+                        if (imeColor == IME_ATOK || imeColor == IME_WNNLAB) {
                             if (underline > 0) continue;
                         } else {
                             continue;
                         }
                     }
 
-                    String imeSubText = imeText.substring(start, end);
+                    String imeSubText = imeSpannableString.subSequence(start, end).toString();
                     int uimeLength = Math.min(columns, imeSubText.length());
                     int uimeOffset = imeSubText.length() - uimeLength;
                     float ofsx = renderer.getMeasureText(imeText.substring(0, start));
@@ -366,6 +384,8 @@ class TranscriptScreen implements Screen {
     private final static int IME_AUTODETECT = 2;
     private final static int IME_ATOK       = 3;
     private final static int IME_GOOGLE     = 4;
+    private final static int IME_GBOARD     = 5;
+    private final static int IME_WNNLAB     = 6;
     private final static int IME_DEFAULT    = 100;
     private static int mIMEColor = 1;
     private static int mIMEDetect = IME_AUTODETECT;
@@ -373,8 +393,8 @@ class TranscriptScreen implements Screen {
         mIMEColor = mode;
     }
 
-    public void setIME(int ime) {
-        mIMEDetect = ime;
+    static public void setIME(int ime) {
+        mIMEDetect = (ime == IME_GBOARD) ? IME_GOOGLE : ime;
     }
 
     private int getStringWidth(String text) {
@@ -492,7 +512,7 @@ class TranscriptScreen implements Screen {
                 if (c == 0) {
                     break;
                 }
-                
+
                 int style = defaultColor;
                 try {
                     if (rowColorBuffer != null) {

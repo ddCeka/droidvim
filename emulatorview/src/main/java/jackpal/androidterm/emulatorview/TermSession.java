@@ -76,17 +76,17 @@ public class TermSession {
 
     private boolean mDefaultUTF8Mode;
 
-    private Thread mReaderThread;
-    private ByteQueue mByteQueue;
-    private byte[] mReceiveBuffer;
+    private final Thread mReaderThread;
+    private final ByteQueue mByteQueue;
+    private final byte[] mReceiveBuffer;
 
-    private Thread mWriterThread;
-    private ByteQueue mWriteQueue;
+    private final Thread mWriterThread;
+    private final ByteQueue mWriteQueue;
     private Handler mWriterHandler;
 
-    private CharBuffer mWriteCharBuffer;
-    private ByteBuffer mWriteByteBuffer;
-    private CharsetEncoder mUTF8Encoder;
+    private final CharBuffer mWriteCharBuffer;
+    private final ByteBuffer mWriteByteBuffer;
+    private final CharsetEncoder mUTF8Encoder;
 
     // Number of rows in the transcript
     private static final int TRANSCRIPT_ROWS = 10000;
@@ -112,7 +112,7 @@ public class TermSession {
     private FinishCallback mFinishCallback;
 
     private boolean mIsRunning = false;
-    private Handler mMsgHandler = new Handler() {
+    private final Handler mMsgHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
             if (!mIsRunning) {
@@ -147,7 +147,7 @@ public class TermSession {
         mReceiveBuffer = new byte[4 * 1024];
         mByteQueue = new ByteQueue(4 * 1024);
         mReaderThread = new Thread() {
-            private byte[] mBuffer = new byte[4096];
+            private final byte[] mBuffer = new byte[4096];
 
             @Override
             public void run() {
@@ -179,7 +179,7 @@ public class TermSession {
 
         mWriteQueue = new ByteQueue(4096);
         mWriterThread = new Thread() {
-            private byte[] mBuffer = new byte[4096];
+            private final byte[] mBuffer = new byte[4096];
 
             @Override
             public void run() {
@@ -253,6 +253,10 @@ public class TermSession {
         mWriterThread.start();
     }
 
+    static public int getTranscriptRows() {
+        return TRANSCRIPT_ROWS;
+    }
+
     /**
      * Write data to the terminal output.  The written data will be consumed by
      * the emulation client as input.
@@ -321,17 +325,43 @@ public class TermSession {
             write(buf, 0, 1);
             return;
         }
+        writeCodePointUTF8(codePoint);
+    }
 
-        CharBuffer charBuf = mWriteCharBuffer;
-        CharsetEncoder encoder = mUTF8Encoder;
+    private final byte[] mUtf8InputBuffer = new byte[6];
+    private void writeCodePointUTF8(int codePoint) {
+        if (codePoint > 1114111 || (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+            // 1114111 (= 2**16 + 1024**2 - 1) is the highest code point, [0xD800,0xDFFF] is the surrogate range.
+            return;
+        }
 
-        charBuf.clear();
-        byteBuf.clear();
-        Character.toChars(codePoint, charBuf.array(), 0);
-        encoder.reset();
-        encoder.encode(charBuf, byteBuf, true);
-        encoder.flush(byteBuf);
-        write(byteBuf.array(), 0, byteBuf.position()-1);
+        int bufferPosition = 0;
+
+        if (codePoint <= /* 7 bits */0b1111111) {
+            mUtf8InputBuffer[bufferPosition++] = (byte) codePoint;
+        } else if (codePoint <= /* 11 bits */0b11111111111) {
+            /* 110xxxxx leading byte with leading 5 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b11000000 | (codePoint >> 6));
+            /* 10xxxxxx continuation byte with following 6 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b10000000 | (codePoint & 0b111111));
+        } else if (codePoint <= /* 16 bits */0b1111111111111111) {
+            /* 1110xxxx leading byte with leading 4 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b11100000 | (codePoint >> 12));
+            /* 10xxxxxx continuation byte with following 6 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b10000000 | ((codePoint >> 6) & 0b111111));
+            /* 10xxxxxx continuation byte with following 6 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b10000000 | (codePoint & 0b111111));
+        } else { /* We have checked codePoint <= 1114111 above, so we have max 21 bits = 0b111111111111111111111 */
+            /* 11110xxx leading byte with leading 3 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b11110000 | (codePoint >> 18));
+            /* 10xxxxxx continuation byte with following 6 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b10000000 | ((codePoint >> 12) & 0b111111));
+            /* 10xxxxxx continuation byte with following 6 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b10000000 | ((codePoint >> 6) & 0b111111));
+            /* 10xxxxxx continuation byte with following 6 bits */
+            mUtf8InputBuffer[bufferPosition++] = (byte) (0b10000000 | (codePoint & 0b111111));
+        }
+        write(mUtf8InputBuffer, 0, bufferPosition);
     }
 
     /* Notify the writer thread that there's new output waiting */
@@ -603,7 +633,7 @@ public class TermSession {
      * Reset the terminal emulator's state.
      */
     public void reset() {
-        mEmulator.reset();
+        if (mEmulator != null) mEmulator.reset();
         notifyUpdate();
     }
 
@@ -624,7 +654,7 @@ public class TermSession {
      */
     public void finish() {
         mIsRunning = false;
-        mEmulator.finish();
+        if (mEmulator != null) mEmulator.finish();
         if (mTranscriptScreen != null) {
             mTranscriptScreen.finish();
         }

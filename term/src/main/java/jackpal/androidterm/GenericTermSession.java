@@ -16,21 +16,18 @@
 
 package jackpal.androidterm;
 
-import java.io.*;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-
 import android.os.Build;
-import android.os.Handler;
-import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
+
+import java.io.FileDescriptor;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Field;
 
 import jackpal.androidterm.emulatorview.ColorScheme;
 import jackpal.androidterm.emulatorview.TermSession;
 import jackpal.androidterm.emulatorview.UpdateCallback;
-
-import jackpal.androidterm.compat.FileCompat;
 import jackpal.androidterm.util.TermSettings;
 
 /**
@@ -57,7 +54,7 @@ class GenericTermSession extends TermSession {
 
     private String mProcessExitMessage;
 
-    private UpdateCallback mUTF8ModeNotify = new UpdateCallback() {
+    private final UpdateCallback mUTF8ModeNotify = new UpdateCallback() {
         public void onUpdate() {
             setPtyUTF8Mode(getUTF8Mode());
         }
@@ -141,7 +138,7 @@ class GenericTermSession extends TermSession {
      * be returned instead.
      *
      * @param defaultTitle The default title to use if this session's title is
-     *     unset or an empty string.
+     *                     unset or an empty string.
      */
     public String getTitle(String defaultTitle) {
         String title = getTitle();
@@ -222,16 +219,6 @@ class GenericTermSession extends TermSession {
     }
 
     private static int getIntFd(ParcelFileDescriptor parcelFd) throws IOException {
-        if (Build.VERSION.SDK_INT >= 12)
-            return FdHelperHoneycomb.getFd(parcelFd);
-        else {
-            try {
-                cacheDescField();
-
-                return descriptorField.getInt(parcelFd.getFileDescriptor());
-            } catch (Exception e) {
-                throw new IOException("Unable to obtain file descriptor on this OS version: " + e.getMessage());
-            }
-        }
+        return FdHelperHoneycomb.getFd(parcelFd);
     }
 }

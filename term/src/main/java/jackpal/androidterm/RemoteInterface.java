@@ -16,38 +16,48 @@
 
 package jackpal.androidterm;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.UUID;
-
-import android.app.Activity;
-import android.app.AlertDialog;
+import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Gravity;
 import android.widget.Toast;
 
-import jackpal.androidterm.compat.AndroidCompat;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.preference.PreferenceManager;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
+
 import jackpal.androidterm.emulatorview.TermSession;
 import jackpal.androidterm.emulatorview.compat.ClipboardManagerCompat;
 import jackpal.androidterm.emulatorview.compat.ClipboardManagerCompatFactory;
-
 import jackpal.androidterm.util.SessionList;
 import jackpal.androidterm.util.TermSettings;
 
-public class RemoteInterface extends Activity {
-    protected static final String PRIVACT_OPEN_NEW_WINDOW = "jackpal.androidterm.private.OPEN_NEW_WINDOW";
-    protected static final String PRIVACT_SWITCH_WINDOW = "jackpal.androidterm.private.SWITCH_WINDOW";
+import static jackpal.androidterm.StaticConfig.FLAVOR_TERMINAL;
+import static jackpal.androidterm.StaticConfig.SCOPED_STORAGE;
+import static jackpal.androidterm.Term.REQUEST_FOREGROUND_SERVICE_PERMISSION;
+import static jackpal.androidterm.Term.REQUEST_STORAGE;
+
+public class RemoteInterface extends AppCompatActivity {
+    protected static final String PRIVACT_OPEN_NEW_WINDOW = BuildConfig.APPLICATION_ID + ".shiftrot.androidterm.private.OPEN_NEW_WINDOW";
+    protected static final String PRIVACT_SWITCH_WINDOW = BuildConfig.APPLICATION_ID + ".shiftrot.androidterm.private.SWITCH_WINDOW";
 
     private static String mHandle = null;
     private static String mFname = null;
@@ -56,17 +66,20 @@ public class RemoteInterface extends Activity {
     protected static final String EXTRA_WINDOW_HANDLE = "jackpal.androidterm.window_handle";
 
     protected static final String PRIVACT_ACTIVITY_ALIAS = "jackpal.androidterm.TermInternal";
-    private final static boolean FLAVOR_VIM = TermVimInstaller.FLAVOR_VIM;
+    private final static boolean FLAVOR_VIM = BuildConfig.FLAVOR.matches(".*vim.*");
 
     private TermSettings mSettings;
 
     private TermService mTermService;
     private Intent mTSIntent;
+    public static CharSequence ShareText = null;
+    public static String FILE_CLIPBOARD = "/data/data/" + BuildConfig.APPLICATION_ID + "/files/.clipboard";
+
     private ServiceConnection mTSConnection = new ServiceConnection() {
         public void onServiceConnected(ComponentName className, IBinder service) {
             TermService.TSBinder binder = (TermService.TSBinder) service;
             mTermService = binder.getService();
-            handleIntent();
+            permissionCheck();
         }
 
         public void onServiceDisconnected(ComponentName className) {
@@ -83,7 +96,15 @@ public class RemoteInterface extends Activity {
 
         Intent TSIntent = new Intent(this, TermService.class);
         mTSIntent = TSIntent;
-        startService(TSIntent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.FOREGROUND_SERVICE) == PackageManager.PERMISSION_GRANTED) {
+                this.getApplicationContext().startForegroundService(TSIntent);
+            } else {
+                requestPermissions(new String[]{Manifest.permission.FOREGROUND_SERVICE}, REQUEST_FOREGROUND_SERVICE_PERMISSION);
+            }
+        } else {
+            startService(TSIntent);
+        }
         if (!bindService(TSIntent, mTSConnection, BIND_AUTO_CREATE)) {
             Log.e(TermDebug.LOG_TAG, "bind to service failed!");
             finish();
@@ -111,8 +132,80 @@ public class RemoteInterface extends Activity {
         super.finish();
     }
 
+    @Override
+    @SuppressLint("NewApi")
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case REQUEST_FOREGROUND_SERVICE_PERMISSION:
+                for (int i = 0; i < permissions.length; i++) {
+                    if (permissions[i].equals(Manifest.permission.FOREGROUND_SERVICE)) {
+                        if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                            this.getApplicationContext().startForegroundService(mTSIntent);
+                        } else {
+                            startService(mTSIntent);
+                        }
+                        break;
+                    }
+                }
+                break;
+            case REQUEST_STORAGE:
+                for (int i = 0; i < permissions.length; i++) {
+                    if (permissions[i].equals(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                        if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                            handleIntent();
+                        } else {
+                            String permisson = permissions[i];
+                            if (shouldShowRequestPermissionRationale(permisson)) {
+                                alert(getString(R.string.storage_permission_error));
+                            }
+                            handleIntent();
+                        }
+                        break;
+                    }
+                }
+                break;
+            default:
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                break;
+        }
+    }
+
     protected TermService getTermService() {
         return mTermService;
+    }
+
+    @SuppressLint("NewApi")
+    void permissionCheck() {
+        if ((SCOPED_STORAGE) || (Build.VERSION.SDK_INT < Build.VERSION_CODES.M)) {
+            handleIntent();
+            return;
+        }
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.Q) {
+            handleIntent();
+            return;
+        }
+        try {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_STORAGE);
+            } else {
+                handleIntent();
+            }
+        } catch (Exception e) {
+            handleIntent();
+        }
+    }
+
+    private boolean isInstalled(String nativeLibraryDir) {
+        if (FLAVOR_TERMINAL) {
+            boolean status = (!new File(this.getFilesDir() + "/bin").isDirectory() || !new File(this.getFilesDir() + "/usr").isDirectory());
+            return !status;
+        } else if (FLAVOR_VIM) {
+            boolean status = (!new File(this.getFilesDir() + "/bin").isDirectory() || !new File(this.getFilesDir() + "/usr").isDirectory());
+            if (status) return false;
+            String APP_VERSION = TermService.APP_VERSION_KEY + nativeLibraryDir;
+            return APP_VERSION.equals(new PrefValue(this).getString(TermService.VERSION_NAME_KEY, ""));
+        }
+        return true;
     }
 
     protected void handleIntent() {
@@ -121,27 +214,49 @@ public class RemoteInterface extends Activity {
             finish();
             return;
         }
+        String nativeLibraryDir = this.getApplicationContext().getApplicationInfo().nativeLibraryDir;
+        if (!isInstalled(nativeLibraryDir)) {
+            if (FLAVOR_TERMINAL) {
+                TermVimInstaller.doInstallTerm = true;
+            } else if (FLAVOR_VIM) {
+                TermVimInstaller.doInstallVim = true;
+            }
+            AlertDialog.Builder bld = new AlertDialog.Builder(this);
+            bld.setIcon(android.R.drawable.ic_dialog_alert);
+            bld.setTitle(getString(R.string.setup_error_title));
+            bld.setMessage(getString(R.string.setup_error));
+            bld.setPositiveButton(android.R.string.ok, (dialog, id) -> finish());
+            bld.setCancelable(false);
+            bld.create().show();
+            return;
+        }
 
         Intent myIntent = getIntent();
         String action = myIntent.getAction();
+        ShareText = null;
 
+        if (action == null) {
+            finish();
+            return;
+        }
         ClipData clipData = myIntent.getClipData();
-        if ((AndroidCompat.SDK >= 19 && action.equals(Intent.ACTION_SEND) && myIntent.hasExtra(Intent.EXTRA_STREAM)) ||
-                   (action.equals(Intent.ACTION_SEND) && clipData != null) ||
-                   (action.equals("android.intent.action.VIEW")) ||
-                   (action.equals("android.intent.action.EDIT")) ||
-                   (action.equals("android.intent.action.PICK")) ||
-                   (action.equals("com.googlecode.android_scripting.action.EDIT_SCRIPT"))) {
+        if ((action.equals(Intent.ACTION_SEND) && myIntent.hasExtra(Intent.EXTRA_STREAM)) ||
+                (action.equals(Intent.ACTION_SEND) && clipData != null) ||
+                (action.equals("android.intent.action.VIEW")) ||
+                (action.equals("android.intent.action.EDIT")) ||
+                (action.equals("android.intent.action.PICK")) ||
+                (action.equals("com.googlecode.android_scripting.action.EDIT_SCRIPT"))) {
             String url = null;
             Uri uri = null;
             if (clipData != null) {
                 uri = clipData.getItemAt(0).getUri();
                 if (uri == null) {
-                    copyToClipboard(clipData.toString());
+                    ShareText = clipData.getItemAt(0).getText();
+                    shareText(ShareText);
                     finish();
                     return;
                 }
-            } else if (AndroidCompat.SDK >= 19 && action.equals(Intent.ACTION_SEND) && myIntent.hasExtra(Intent.EXTRA_STREAM)) {
+            } else if (action.equals(Intent.ACTION_SEND) && myIntent.hasExtra(Intent.EXTRA_STREAM)) {
                 Object extraStream = myIntent.getExtras().get(Intent.EXTRA_STREAM);
                 if (extraStream instanceof Uri) {
                     uri = (Uri) extraStream;
@@ -149,41 +264,66 @@ public class RemoteInterface extends Activity {
             } else {
                 uri = myIntent.getData();
             }
-            if (uri != null && uri.toString().matches("^file:///.*")) {
+            String intentCommand = mSettings.getIntentCommand();
+            String CMD_SH = new File(TermService.getAPPFILES() + "/usr/bin/bash").canExecute() ? "bash" : "sh";
+            boolean flavorVim = mSettings.getInitialCommand().matches("(.|\n)*(^|\n)-?vim\\.app(.|\n)*");
+            if (intentCommand.equals("")) {
+                intentCommand = CMD_SH;
+                if (flavorVim) intentCommand = ":e";
+            }
+            String CMD_ESC = intentCommand.startsWith(":") ? "\u001b" : "";
+            if (uri != null && uri.toString().startsWith("file:///")) {
                 String path = uri.getPath();
                 if (new File(path).canRead()) {
-                    path = path.replaceAll("([ ()%#&])", "\\\\$1");
-                    String command = "\u001b"+String.format(":e %s", path);
+                    path = quotePath(path, "".equals(CMD_ESC));
+                    String command = CMD_ESC + intentCommand + " " + path;
                     // Find the target window
                     mReplace = true;
                     mHandle = switchToWindow(mHandle, command);
                     mReplace = false;
+                    finish();
+                } else {
+                    try {
+                        AlertDialog.Builder bld = new AlertDialog.Builder(this);
+                        bld.setMessage(getString(R.string.storage_read_error));
+                        bld.setPositiveButton(android.R.string.ok, (dialog, id) -> finish());
+                        bld.setCancelable(false);
+                        bld.create().show();
+                    } catch (Exception e) {
+                        finish();
+                    }
+                    return;
                 }
-                finish();
-            } else if (uri != null && AndroidCompat.SDK >= 19 && uri.getScheme().equals("content") && FLAVOR_VIM) {
+            } else if (uri != null && uri.getScheme() != null && uri.getScheme().equals("content")) {
                 Context context = this;
                 String command = null;
-                String path = Term.getPath(context, uri);
+                String path = UriToPath.getPath(context, uri);
                 if (path != null) {
-                    path = path.replaceAll("([ ()%#&])", "\\\\$1");
-                    command = "\u001b"+String.format(":e %s", path);
-                } else {
-                    Cursor cursor = getContentResolver().query(uri, null, null, null, null, null);
-                    path = Term.handleOpenDocument(uri, cursor);
-                    if (path != null) {
-                        File dir = new File(this.getExternalCacheDir().toString()+"/scratch");
-                        SyncFileObserver sfo = new SyncFileObserver(path);
-                        sfo.setConTentResolver(this.getContentResolver());
-                        path = dir.toString()+path;
-                        if (!sfo.putUriAndLoad(uri, path)) {
-                            AlertDialog.Builder bld = new AlertDialog.Builder(this);
-                            bld.setMessage(this.getString(R.string.storage_read_error));
-                            bld.setNeutralButton("OK", null);
-                            bld.create().show();
-                            finish();
+                    path = quotePath(path, "".equals(CMD_ESC));
+                    command = CMD_ESC + intentCommand + " " + path;
+                } else if (getContentResolver() != null) {
+                    try {
+                        Cursor cursor = getContentResolver().query(uri, null, null, null, null, null);
+                        path = Term.getOpenDocumentPath(uri, cursor);
+                    } catch (Exception e) {
+                        alert(e + "\n" + this.getString(R.string.storage_read_error));
+                        finish();
+                    }
+                    if (path == null) {
+                        alert(this.getString(R.string.storage_read_error));
+                        finish();
+                    } else {
+                        SyncFileObserver sfo = Term.restoreSyncFileObserver(this);
+                        if (sfo != null) {
+                            path = sfo.getObserverDir() + path;
+                            if (path.equals("") || !sfo.putUriAndLoad(uri, path)) {
+                                String fname = new File(path).getName();
+                                alert(fname + "\n" + this.getString(R.string.storage_read_error));
+                                finish();
+                            }
+                            path = quotePath(path, "".equals(CMD_ESC));
+                            command = CMD_ESC + intentCommand + " " + path;
                         }
-                        path = path.replaceAll("([ ()%#&])", "\\\\$1");
-                        command = "\u001b"+String.format(":e %s", path);
                     }
                 }
                 // Find the target window
@@ -191,27 +331,32 @@ public class RemoteInterface extends Activity {
                 mHandle = switchToWindow(mHandle, command);
                 mReplace = false;
                 finish();
+                return;
             } else if (action.equals("com.googlecode.android_scripting.action.EDIT_SCRIPT")) {
                 url = myIntent.getExtras().getString("com.googlecode.android_scripting.extra.SCRIPT_PATH");
-            } else if (myIntent.getScheme() != null && myIntent.getScheme().equals("file")) {
+            } else if (myIntent.getScheme() != null && myIntent.getScheme() != null && myIntent.getScheme().equals("file")) {
                 if (myIntent.getData() != null) url = myIntent.getData().getPath();
             }
             if (url != null) {
                 String command = mSettings.getIntentCommand();
+                if (command.equals("")) {
+                    command = CMD_SH;
+                    if (flavorVim) command = ":e";
+                }
                 if (command.matches("^:.*")) {
-                    url = url.replaceAll("([ ()%#&$])", "\\\\$1");
-                    command = "\u001b"+String.format(command, url);
+                    url = quotePath(url, "".equals(CMD_ESC));
+                    command = CMD_ESC + command + " " + url;
                     // Find the target window
                     mReplace = true;
                     mHandle = switchToWindow(mHandle, command);
                     mReplace = false;
-                 } else if ((mHandle != null) && (url.equals(mFname))) {
+                } else if ((mHandle != null) && (url.equals(mFname))) {
                     // Target the request at an existing window if open
-                    command = String.format(command, url);
+                    command = command + " " + url;
                     mHandle = switchToWindow(mHandle, command);
                 } else {
                     // Open a new window
-                    command = String.format(command, url);
+                    command = command + " " + url;
                     mHandle = openNewWindow(command);
                 }
                 mFname = url;
@@ -221,26 +366,50 @@ public class RemoteInterface extends Activity {
                 setResult(RESULT_OK, result);
             }
         } else if (action.equals(Intent.ACTION_SEND) && myIntent.hasExtra(Intent.EXTRA_TEXT)) {
-            Object extraStream = myIntent.getExtras().get(Intent.EXTRA_TEXT);
-            String str = (String)extraStream;
-            copyToClipboard(str);
-        } else {
+            ShareText = myIntent.getExtras().getCharSequence(Intent.EXTRA_TEXT);
+            shareText(ShareText);
         }
-
         finish();
     }
 
-    private void copyToClipboard(String str) {
+    void alert(final String message) {
+        @SuppressLint("ShowToast") final Toast toast = Toast.makeText(this, message, Toast.LENGTH_LONG);
+        toast.setGravity(Gravity.CENTER, 0, 0);
+        Term.showToast(toast);
+    }
+
+    public void shareText(CharSequence str) {
+        if (str == null) {
+            alert(this.getString(R.string.toast_clipboard_error));
+            return;
+        }
         ClipboardManagerCompat clip = ClipboardManagerCompatFactory
                 .getManager(this.getApplicationContext());
-        clip.setText(str);
-        Toast toast = Toast.makeText(this,R.string.toast_clipboard,Toast.LENGTH_LONG);
-        toast.setGravity(Gravity.BOTTOM, 0, 0);
-        toast.show();
+        String shareText = str.toString().replaceAll("[\\xC2\\xA0]", " ");
+        if (FLAVOR_VIM) {
+            FILE_CLIPBOARD = TermService.getAPPFILES() + "/.clipboard";
+            Term.writeStringToFile(FILE_CLIPBOARD, shareText);
+            String command = "\u001b" + ":ATEMod _paste";
+            // Find the target window
+            mReplace = true;
+            mHandle = switchToWindow(mHandle, command);
+            mReplace = false;
+        } else {
+            clip.setText(shareText);
+            alert(this.getString(R.string.toast_clipboard));
+        }
+    }
+
+    private static String quotePath(String path, boolean bash) {
+        if (bash) {
+            return quoteForBash(path);
+        } else {
+            return path.replaceAll(Term.SHELL_ESCAPE, "\\\\$1");
+        }
     }
 
     /**
-     *  Quote a string so it can be used as a parameter in bash and similar shells.
+     * Quote a string so it can be used as a parameter in bash and similar shells.
      */
     public static String quoteForBash(String s) {
         StringBuilder builder = new StringBuilder();
@@ -260,6 +429,7 @@ public class RemoteInterface extends Activity {
 
     protected String openNewWindow(String iInitialCommand) {
         TermService service = getTermService();
+        Term.restoreSyncFileObserver(this);
 
         String initialCommand = getInitialCommand();
         if (iInitialCommand != null) {
@@ -282,6 +452,8 @@ public class RemoteInterface extends Activity {
             Intent intent = new Intent(PRIVACT_OPEN_NEW_WINDOW);
             intent.addCategory(Intent.CATEGORY_DEFAULT);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.setClassName(BuildConfig.APPLICATION_ID, PRIVACT_ACTIVITY_ALIAS);
+            intent.setPackage(getPackageName());
             startActivity(intent);
 
             return handle;
@@ -291,6 +463,7 @@ public class RemoteInterface extends Activity {
     }
 
     private boolean mReplace = false;
+
     private String getInitialCommand() {
         String cmd = mSettings.getInitialCommand();
         cmd = mTermService.getInitialCommand(cmd, (mReplace && mTermService.getSessions().size() == 0));
@@ -327,6 +500,8 @@ public class RemoteInterface extends Activity {
         intent.addCategory(Intent.CATEGORY_DEFAULT);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(PRIVEXTRA_TARGET_WINDOW, index);
+        intent.setClassName(BuildConfig.APPLICATION_ID, PRIVACT_ACTIVITY_ALIAS);
+        intent.setPackage(getPackageName());
         startActivity(intent);
 
         return handle;
@@ -351,9 +526,18 @@ public class RemoteInterface extends Activity {
                 break;
             }
         }
+        int displayChild = TermViewFlipper.getCurrentDisplayChild();
+        if (displayChild > 0 && displayChild < sessions.size()) {
+            ShellTermSession session = (ShellTermSession) sessions.get(displayChild);
+            if (session != null) {
+                index = displayChild;
+                target = session;
+            }
+        }
 
         if (target == null) {
-            if (sessions.isEmpty() || iInitialCommand == null) return openNewWindow(iInitialCommand);
+            if (sessions.isEmpty() || iInitialCommand == null)
+                return openNewWindow(iInitialCommand);
             target = (ShellTermSession) sessions.get(0);
         }
 
@@ -367,6 +551,8 @@ public class RemoteInterface extends Activity {
         intent.addCategory(Intent.CATEGORY_DEFAULT);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         intent.putExtra(PRIVEXTRA_TARGET_WINDOW, index);
+        intent.setClassName(BuildConfig.APPLICATION_ID, PRIVACT_ACTIVITY_ALIAS);
+        intent.setPackage(getPackageName());
         startActivity(intent);
         return handle;
     }

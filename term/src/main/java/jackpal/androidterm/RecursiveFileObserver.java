@@ -1,19 +1,19 @@
 package jackpal.androidterm;
 
+import android.os.FileObserver;
+import android.util.Log;
+
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Stack;
 
-import android.os.FileObserver;
-import android.util.Log;
-
 public class RecursiveFileObserver extends FileObserver {
 
     private final Map<String, FileObserver> mObservers = new HashMap<>();
-    private String mPath;
-    private int mMask;
-    private EventListener mListener;
+    private final String mPath;
+    private final int mMask;
+    private final EventListener mListener;
 
     public interface EventListener {
         void onEvent(int event, File file);
@@ -76,7 +76,7 @@ public class RecursiveFileObserver extends FileObserver {
         return file.isDirectory() && !file.getName().equals(".") && !file.getName().equals("..");
     }
 
-    private void stopWatching(String path) {
+    void stopWatching(String path) {
         synchronized (mObservers) {
             FileObserver observer = mObservers.remove(path);
             if (observer != null) {
@@ -159,7 +159,7 @@ public class RecursiveFileObserver extends FileObserver {
     }
 
     private class SingleFileObserver extends FileObserver {
-        private String filePath;
+        private final String filePath;
 
         public SingleFileObserver(String path, int mask) {
             super(path, mask);
@@ -176,14 +176,14 @@ public class RecursiveFileObserver extends FileObserver {
             }
 
             switch (event & FileObserver.ALL_EVENTS) {
-            case DELETE_SELF:
-                RecursiveFileObserver.this.stopWatching(filePath);
-                break;
-            case CREATE:
-                if (watch(file)) {
-                    RecursiveFileObserver.this.startWatching(file.getAbsolutePath());
-                }
-                break;
+                case DELETE_SELF:
+                    RecursiveFileObserver.this.stopWatching(filePath);
+                    break;
+                case CREATE:
+                    if (watch(file)) {
+                        RecursiveFileObserver.this.startWatching(file.getAbsolutePath());
+                    }
+                    break;
             }
 
             RecursiveFileObserver.this.onEvent(event, file.toString());

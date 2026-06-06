@@ -23,23 +23,28 @@ import android.graphics.Typeface;
 import android.os.Environment;
 import android.text.TextPaint;
 
-import jackpal.androidterm.emulatorview.compat.AndroidCompat;
-import java.io.*;
+import java.io.File;
 
 class PaintRenderer extends BaseTextRenderer {
-    private static final String FONTPATH = Environment.getExternalStorageDirectory().getPath()+"/fonts";
+    private static final String FONTPATH = Environment.getExternalStorageDirectory().getPath() + "/fonts";
     private int mTextLeading = 0;
+
     @SuppressLint("NewApi")
     public PaintRenderer(int fontSize, ColorScheme scheme, String fontFile, int textLeading) {
         super(scheme);
         mTextPaint = new Paint();
         mTextLeading = textLeading;
-        if (AndroidCompat.SDK > 3) {
-            String fontPath = String.format("%s/%s", FONTPATH, (fontFile != null ? fontFile : "default.ttf"));
-            File file = new File(fontPath);
-            if (file.canRead()) {
+        String fontPath;
+        if (fontFile == null) {
+            fontPath = String.format("%s/%s", FONTPATH, (fontFile != null ? fontFile : "default.ttf"));
+        } else {
+            fontPath = fontFile;
+        }
+        File file = new File(fontPath);
+        if (file.canRead()) {
+            try {
                 mTextPaint.setTypeface(Typeface.createFromFile(file));
-            } else {
+            } catch (Exception e) {
                 mTextPaint.setTypeface(Typeface.MONOSPACE);
             }
         } else {
@@ -51,20 +56,20 @@ class PaintRenderer extends BaseTextRenderer {
         mCharHeight = (int) Math.ceil(mTextPaint.getFontSpacing());
         mCharAscent = (int) Math.ceil(mTextPaint.ascent());
         mCharDescent = mCharHeight + mCharAscent;
-        mCharHeight += mTextLeading*2;
+        mCharHeight += mTextLeading * 2;
         mCharDescent += mTextLeading;
         mCharWidth = mTextPaint.measureText(EXAMPLE_CHAR, 0, 1);
     }
 
     public void drawTextRun(Canvas canvas, float x, float y, int lineOffset,
-            int runWidth, char[] text, int index, int count,
-            boolean selectionStyle, int textStyle,
-            int cursorOffset, int cursorIndex, int cursorIncr, int cursorWidth, int cursorMode) {
+                            int runWidth, char[] text, int index, int count,
+                            boolean selectionStyle, int textStyle,
+                            int cursorOffset, int cursorIndex, int cursorIncr, int cursorWidth, int cursorMode) {
         int foreColor = TextStyle.decodeForeColor(textStyle);
         int backColor = TextStyle.decodeBackColor(textStyle);
         int effect = TextStyle.decodeEffect(textStyle);
 
-        boolean inverse =  mReverseVideo ^
+        boolean inverse = mReverseVideo ^
                 (effect & (TextStyle.fxInverse | TextStyle.fxItalic)) != 0;
         if (inverse) {
             int temp = foreColor;
@@ -80,6 +85,8 @@ class PaintRenderer extends BaseTextRenderer {
         if (blink && backColor < 8) {
             backColor += 8;
         }
+        if (backColor >= TextStyle.ciColorLength) backColor = TextStyle.ciBackground;
+        if (foreColor >= TextStyle.ciColorLength) foreColor = TextStyle.ciForeground;
         mTextPaint.setColor(mPalette[backColor]);
         if ((effect & TextStyle.fxIme) != 0) {
             mTextPaint.setColor(mImePaint.bgColor);
@@ -97,7 +104,10 @@ class PaintRenderer extends BaseTextRenderer {
         float cursorX = 0;
         if (cursorVisible) {
             cursorX = x + cursorOffset * mCharWidth;
-            drawCursorImp(canvas, (int) cursorX, y, cursorWidth * mCharWidth, mCharHeight, cursorMode);
+            if (mCursorHeightMode == 3) {
+                drawCursorImp(canvas, cursorX, y, cursorWidth * mCharWidth, mCharHeight, cursorMode);
+                cursorVisible = false;
+            }
         }
 
         boolean invisible = (effect & TextStyle.fxInvisible) != 0;
@@ -113,7 +123,7 @@ class PaintRenderer extends BaseTextRenderer {
             int textPaintColor;
             if (foreColor < 8 && bold) {
                 // In 16-color mode, bold also implies bright foreground colors
-                textPaintColor = mPalette[foreColor+8];
+                textPaintColor = mPalette[foreColor + 8];
             } else {
                 textPaintColor = mPalette[foreColor];
             }
@@ -125,22 +135,32 @@ class PaintRenderer extends BaseTextRenderer {
             float textOriginY = y - mCharDescent;
 
             if (cursorVisible) {
-                // Text before cursor
-                int countBeforeCursor = cursorIndex - index;
-                int countAfterCursor = count - (countBeforeCursor + cursorIncr);
-                if (countBeforeCursor > 0){
-                    canvas.drawText(text, index, countBeforeCursor, left, textOriginY, mTextPaint);
-                }
-                // Text at cursor
-                mTextPaint.setColor(mPalette[TextStyle.ciCursorForeground]);
-                canvas.drawText(text, cursorIndex, cursorIncr, cursorX,
-                        textOriginY, mTextPaint);
-                // Text after cursor
-                if (countAfterCursor > 0) {
-                    mTextPaint.setColor(textPaintColor);
-                    canvas.drawText(text, cursorIndex + cursorIncr, countAfterCursor,
-                            cursorX + cursorWidth * mCharWidth,
-                            textOriginY, mTextPaint);
+                if (mCursorHeightMode == 2) {
+                    canvas.drawText(text, index, count, left, textOriginY, mTextPaint);
+                    drawCursorImp(canvas, cursorX, y, cursorWidth * mCharWidth, mCharHeight, cursorMode);
+                    mTextPaint.setColor(mPalette[TextStyle.ciCursorForeground]);
+                    canvas.drawText(text, cursorIndex, cursorIncr, cursorX, textOriginY, mTextPaint);
+                } else {
+                    // Text before cursor
+                    int countBeforeCursor = cursorIndex - index;
+                    int countAfterCursor = count - (countBeforeCursor + cursorIncr);
+                    if (countBeforeCursor > 0) {
+                        canvas.drawText(text, index, countBeforeCursor, left, textOriginY, mTextPaint);
+                    }
+                    // Text at cursor
+                    drawCursorImp(canvas, cursorX, y, cursorWidth * mCharWidth, mCharHeight, cursorMode);
+                    if (mCursorHeightMode == 0 || mCursorHeightMode == 2) {
+                        mTextPaint.setColor(mPalette[TextStyle.ciCursorForeground]);
+                    } else if (mCursorHeightMode >= 4) {
+                        mTextPaint.setColor(textPaintColor);
+                    }
+                    canvas.drawText(text, cursorIndex, cursorIncr, cursorX, textOriginY, mTextPaint);
+                    // Text after cursor
+                    if (countAfterCursor > 0) {
+                        mTextPaint.setColor(textPaintColor);
+                        canvas.drawText(text, cursorIndex + cursorIncr, countAfterCursor,
+                                cursorX + cursorWidth * mCharWidth, textOriginY, mTextPaint);
+                    }
                 }
             } else {
                 canvas.drawText(text, index, count, left, textOriginY, mTextPaint);
@@ -174,11 +194,12 @@ class PaintRenderer extends BaseTextRenderer {
         return mCharDescent;
     }
 
-    private Paint mTextPaint;
+    private final Paint mTextPaint;
     private TextPaint mImePaint = null;
-    private float mCharWidth;
+    private final float mCharWidth;
     private int mCharHeight;
-    private int mCharAscent;
+    private final int mCharAscent;
     private int mCharDescent;
     private static final char[] EXAMPLE_CHAR = {'M'};
+
 }

@@ -63,14 +63,14 @@ class TerminalEmulator {
     /**
      * Stores the characters that appear on the screen of the emulated terminal.
      */
-    private TranscriptScreen mMainBuffer;
+    private final TranscriptScreen mMainBuffer;
     private TranscriptScreen mAltBuffer;
     private TranscriptScreen mScreen;
 
     /**
      * The terminal session this emulator is bound to.
      */
-    private TermSession mSession;
+    private final TermSession mSession;
 
     /**
      * Keeps track of the current argument of the current escape sequence.
@@ -87,12 +87,12 @@ class TerminalEmulator {
     /**
      * Holds the arguments of the current escape sequence.
      */
-    private int[] mArgs = new int[MAX_ESCAPE_PARAMETERS];
+    private final int[] mArgs = new int[MAX_ESCAPE_PARAMETERS];
 
     /**
      * Holds OSC arguments, which can be strings.
      */
-    private byte[] mOSCArg = new byte[MAX_OSC_STRING_LENGTH];
+    private final byte[] mOSCArg = new byte[MAX_OSC_STRING_LENGTH];
 
     private int mOSCArgLength;
 
@@ -154,6 +154,8 @@ class TerminalEmulator {
      * Escape processing state: ESC ] (AKA OSC - Operating System Controls)
      */
     private static final int ESC_RIGHT_SQUARE_BRACKET_ESC = 9;
+
+    private static final int ESC_LEFT_SQUARE_BRACKET_LARGER_THAN = 10;
 
     /**
      * True if the current escape sequence should continue, false if the current
@@ -324,7 +326,7 @@ class TerminalEmulator {
     private final static int CHAR_SET_ALT_SPECIAL_GRAPICS = 4;
 
     /** What is the current graphics character set. [0] == G0, [1] == G1 */
-    private int[] mCharSet = new int[2];
+    private final int[] mCharSet = new int[2];
 
     /** Derived from mAlternateCharSet and mCharSet.
      *  True if we're supposed to be drawing the special graphics.
@@ -392,9 +394,9 @@ class TerminalEmulator {
     private boolean mUTF8Mode = false;
     private boolean mUTF8EscapeUsed = false;
     private int mUTF8ToFollow = 0;
-    private ByteBuffer mUTF8ByteBuffer;
-    private CharBuffer mInputCharBuffer;
-    private CharsetDecoder mUTF8Decoder;
+    private final ByteBuffer mUTF8ByteBuffer;
+    private final CharBuffer mInputCharBuffer;
+    private final CharsetDecoder mUTF8Decoder;
     private UpdateCallback mUTF8ModeNotify;
 
     /** This is not accurate, but it makes the terminal more useful on
@@ -415,7 +417,8 @@ class TerminalEmulator {
         mSession = session;
         mMainBuffer = screen;
         mScreen = mMainBuffer;
-        mAltBuffer = new TranscriptScreen(columns, 1024, rows, scheme);
+        int tsRows = mSession.getTranscriptRows();
+        mAltBuffer = new TranscriptScreen(columns, tsRows, rows, scheme);
         mRows = rows;
         mColumns = columns;
         mTabStop = new boolean[mColumns];
@@ -673,7 +676,7 @@ class TerminalEmulator {
                 mProcessedCharCount++;
             } catch (Exception e) {
                 Log.e(EmulatorDebug.LOG_TAG, "Exception while processing character "
-                        + Integer.toString(mProcessedCharCount) + " code "
+                        + mProcessedCharCount + " code "
                         + Integer.toString(b), e);
             }
         }
@@ -683,20 +686,18 @@ class TerminalEmulator {
         process(b, true);
     }
 
-    private static Queue<Integer> mEscSeq = new LinkedList<Integer>();
+    private static final Queue<Integer> mEscSeq = new LinkedList<Integer>();
     public void setEscCtrlMode() {
         int esc = 0;
         for (int i = 0; i <= mArgIndex; i++) {
             esc = mArgs[i];
         }
         setOSCMode(esc);
-        return;
     }
 
     public void setOSCMode(int esc) {
         mEscSeq.offer(esc);
         mUTF8ModeNotify.onUpdate();
-        return;
     }
 
     public int getEscCtrlMode() {
@@ -804,6 +805,10 @@ class TerminalEmulator {
 
             case ESC_LEFT_SQUARE_BRACKET:
                 doEscLeftSquareBracket(b); // CSI
+                break;
+
+            case ESC_LEFT_SQUARE_BRACKET_LARGER_THAN:
+                parseArg(b);
                 break;
 
             case ESC_LEFT_SQUARE_BRACKET_QUESTION_MARK:
@@ -1340,6 +1345,10 @@ class TerminalEmulator {
             continueSequence(ESC_LEFT_SQUARE_BRACKET_QUESTION_MARK);
             break;
 
+        case '>': // Esc [ >
+            continueSequence(ESC_LEFT_SQUARE_BRACKET_LARGER_THAN);
+            break;
+
         case 'c': // Send device attributes
             sendDeviceAttributes();
             break;
@@ -1430,7 +1439,51 @@ class TerminalEmulator {
             setCursorRowCol(mTopMargin, 0);
         }
             break;
-
+        case ' ':
+            /*
+             * Ps=0: Block, Blink
+             * 1: Block, Blink
+             * 2: Block, Steady
+             * 3: Underline, Blink
+             * 4: Underline, Steady
+             * 5: Vertical line, Blink
+             * 6: Vertical line, Steady
+             */
+            int mode = getArg0(1);
+            switch (mode) {
+            case 0:
+            case 1:
+                BaseTextRenderer.setCursorHeightMode(BaseTextRenderer.getCursorHeightMode());
+                EmulatorView.setCursorBlink(1);
+                break;
+            case 2:
+                BaseTextRenderer.setCursorHeightMode(BaseTextRenderer.getCursorHeightMode());
+                EmulatorView.setCursorBlink(0);
+                break;
+            case 3:
+                BaseTextRenderer.setCursorHeightMode(3);
+                EmulatorView.setCursorBlink(1);
+                break;
+            case 4:
+                BaseTextRenderer.setCursorHeightMode(1);
+                EmulatorView.setCursorBlink(0);
+                break;
+            case 5:
+                BaseTextRenderer.setCursorHeightMode(4);
+                EmulatorView.setCursorBlink(1);
+                break;
+            case 6:
+                BaseTextRenderer.setCursorHeightMode(5);
+                EmulatorView.setCursorBlink(0);
+                break;
+            default:
+                break;
+            }
+            if (mArgIndex < mArgs.length) {
+                mArgIndex++;
+            }
+            continueSequence();
+            break;
         case 't':
             setEscCtrlMode();
             break;
@@ -1574,11 +1627,15 @@ class TerminalEmulator {
         case 2: // Change window title to T
             changeTitle(ps, nextOSCString(-1));
             break;
-        default:
-            if (ps >= 10000) {
-                setOSCMode(ps-10000);
-                break;
+        case 99:
+            String str = nextOSCString(-1);
+            try {
+                setOSCMode(Integer.parseInt(str));
+            } catch (NumberFormatException e) {
+                Log.e(EmulatorDebug.LOG_TAG, str + e.toString());
             }
+            break;
+        default:
             unknownParameter(ps);
             break;
         }
@@ -1851,8 +1908,8 @@ class TerminalEmulator {
      * Send a Unicode code point to the screen.
      *
      * @param c The code point of the character to display
-     * @param foreColor The foreground color of the character
-     * @param backColor The background color of the character
+     * foreColor The foreground color of the character
+     * backColor The background color of the character
      */
     private void emit(int c, int style) {
         boolean autoWrap = autoWrapEnabled();
@@ -1911,7 +1968,7 @@ class TerminalEmulator {
 
     private void emit(byte b) {
         if (mUseAlternateCharSet && b < 128) {
-            emit((int) mSpecialGraphicsCharMap[b]);
+            emit(mSpecialGraphicsCharMap[b]);
         } else {
             emit((int) b);
         }
@@ -1926,7 +1983,7 @@ class TerminalEmulator {
         if (Character.isHighSurrogate(c[0])) {
             emit(Character.toCodePoint(c[0], c[1]));
         } else {
-            emit((int) c[0]);
+            emit(c[0]);
         }
     }
 
@@ -1944,7 +2001,7 @@ class TerminalEmulator {
                 emit(Character.toCodePoint(c[i], c[i+1]), style);
                 ++i;
             } else {
-                emit((int) c[i], style);
+                emit(c[i], style);
             }
         }
     }

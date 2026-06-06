@@ -15,7 +15,7 @@ package jackpal.androidterm.emulatorview;
  */
 final class StyleRow {
     private int mStyle;
-    private int mColumns;
+    private final int mColumns;
     /** Initially null, will be allocated when needed. */
     private byte[] mData;
 
@@ -72,7 +72,7 @@ final class StyleRow {
     }
 
     private void allocate() {
-        mData = new byte[3*mColumns];
+        mData = new byte[4*(mColumns+1)];
         for (int i = 0; i < mColumns; i++) {
             setStyle(i, mStyle);
         }

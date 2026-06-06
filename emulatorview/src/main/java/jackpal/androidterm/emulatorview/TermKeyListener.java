@@ -1,6 +1,5 @@
 package jackpal.androidterm.emulatorview;
 
-import jackpal.androidterm.emulatorview.compat.AndroidCompat;
 import jackpal.androidterm.emulatorview.compat.KeyCharacterMapCompat;
 
 import java.io.IOException;
@@ -24,7 +23,7 @@ class TermKeyListener {
     private static final boolean LOG_COMBINING_ACCENT = false;
 
     /** Disabled for now because it interferes with ALT processing on phones with physical keyboards. */
-    private final static boolean SUPPORT_8_BIT_META = false;
+    private static boolean SUPPORT_8_BIT_META = false;
 
     private static final int KEYMOD_ALT   = 0x80000000;
     private static final int KEYMOD_CTRL  = 0x40000000;
@@ -34,8 +33,8 @@ class TermKeyListener {
 
     private static Map<Integer, String> mKeyMap;
 
-    private String[] mKeyCodes = new String[256];
-    private String[] mAppKeyCodes = new String[256];
+    private final String[] mKeyCodes = new String[256];
+    private final String[] mAppKeyCodes = new String[256];
 
     private void initKeyCodes() {
         mKeyMap = new HashMap<Integer, String>();
@@ -293,21 +292,20 @@ class TermKeyListener {
         }
     }
 
-    private ModifierKey mAltKey = new ModifierKey();
+    private final ModifierKey mAltKey = new ModifierKey();
 
-    private ModifierKey mCapKey = new ModifierKey();
+    private final ModifierKey mCapKey = new ModifierKey();
 
-    private ModifierKey mControlKey = new ModifierKey();
+    private final ModifierKey mControlKey = new ModifierKey();
 
-    private ModifierKey mFnKey = new ModifierKey();
+    private final ModifierKey mFnKey = new ModifierKey();
 
     private int mCursorMode;
 
     private boolean mHardwareControlKey;
 
-    private TermSession mTermSession;
+    private final TermSession mTermSession;
 
-    private int mBackKeyCode;
     private boolean mAltSendsEsc;
 
     private boolean mIgnoreXoff;
@@ -325,10 +323,6 @@ class TermKeyListener {
         mTermSession = termSession;
         initKeyCodes();
         updateCursorMode();
-    }
-
-    public void setBackKeyCharacter(int code) {
-        mBackKeyCode = code;
     }
 
     public void setAltSendsEsc(boolean flag) {
@@ -381,8 +375,10 @@ class TermKeyListener {
         updateCursorMode();
     }
 
+    private String mTermType;
     public void setTermType(String termType) {
         setFnKeys(termType);
+        mTermType = termType;
     }
 
     private void setFnKeys(String termType) {
@@ -512,7 +508,7 @@ class TermKeyListener {
 
         if (result > -1) {
             mAltKey.adjustAfterKeypress();
-            mCapKey.adjustAfterKeypress();
+            // mCapKey.adjustAfterKeypress();
             mControlKey.adjustAfterKeypress();
             mFnKey.adjustAfterKeypress();
             updateCursorMode();
@@ -549,11 +545,7 @@ class TermKeyListener {
 
         case KeyEvent.KEYCODE_SHIFT_LEFT:
         case KeyEvent.KEYCODE_SHIFT_RIGHT:
-            if (allowToggle) {
-                mCapKey.onPress();
-                updateCursorMode();
-            }
-            break;
+            return;
 
         case KEYCODE_CTRL_LEFT:
         case KEYCODE_CTRL_RIGHT:
@@ -568,15 +560,10 @@ class TermKeyListener {
             // Ignore the function key.
             return;
 
-        case KeyEvent.KEYCODE_BACK:
-            result = mBackKeyCode;
-            break;
-
         default: {
             int metaState = event.getMetaState();
             chordedCtrl = ((META_CTRL_ON & metaState) != 0);
-            boolean effectiveCaps = allowToggle &&
-                    (mCapKey.isActive());
+            boolean effectiveCaps = allowToggle && (mCapKey.isActive());
             boolean effectiveAlt = allowToggle && mAltKey.isActive();
             int effectiveMetaState = metaState & (~META_CTRL_MASK);
             if (effectiveCaps) {
@@ -634,7 +621,8 @@ class TermKeyListener {
             }
         }
 
-        boolean effectiveControl = chordedCtrl || mAltControlKey || mHardwareControlKey || (allowToggle && mControlKey.isActive());
+        boolean allowToggleCtrl = allowToggle || !mUseCookedIme;
+        boolean effectiveControl = chordedCtrl || mAltControlKey || mHardwareControlKey || (allowToggleCtrl && mControlKey.isActive());
         boolean effectiveFn = allowToggle && mFnKey.isActive();
 
         result = mapControlChar(effectiveControl, effectiveFn, result);
@@ -673,13 +661,18 @@ class TermKeyListener {
     }
 
     static boolean isEventFromToggleDevice(KeyEvent event) {
-        if (AndroidCompat.SDK < 11) {
-            return true;
-        }
         KeyCharacterMapCompat kcm = KeyCharacterMapCompat.wrap(
                 KeyCharacterMap.load(event.getDeviceId()));
         return kcm.getModifierBehaviour() ==
                 KeyCharacterMapCompat.MODIFIER_BEHAVIOR_CHORDED_OR_TOGGLED;
+    }
+
+    public void setSupport8bitMeta(boolean state) {
+        SUPPORT_8_BIT_META = state;
+    }
+
+    public boolean getSupport8bitMeta() {
+        return SUPPORT_8_BIT_META;
     }
 
     private boolean mThumbCtrl = false;
@@ -759,10 +752,77 @@ class TermKeyListener {
                 byte[] bytes = code.getBytes();
                 Log.d(EmulatorDebug.LOG_TAG, "Out: '" + EmulatorDebug.bytesToString(bytes, 0, bytes.length) + "'");
             }
+            code = mapTenKeyCode(keyCode, code);
             mTermSession.write(code);
             return true;
         }
         return false;
+    }
+
+    private String mapTenKeyCode(int keyCode, String code) {
+        if ("vt100".equals(mTermType)) return code;
+        switch (keyCode) {
+        case KEYCODE_NUM_LOCK:
+            code = "";
+            break;
+        case KEYCODE_NUMPAD_DIVIDE:
+            code = "/";
+            break;
+        case KEYCODE_NUMPAD_MULTIPLY:
+            code = "*";
+            break;
+        case KEYCODE_NUMPAD_SUBTRACT:
+            code = "-";
+            break;
+        case KEYCODE_NUMPAD_ADD:
+            code = "+";
+            break;
+        case KEYCODE_NUMPAD_ENTER:
+            code = "\015";
+            break;
+        case KEYCODE_NUMPAD_EQUALS:
+            code = "=";
+            break;
+        case KEYCODE_NUMPAD_COMMA:
+            code = ",";
+            break;
+        case KEYCODE_NUMPAD_DOT:
+            code = ".";
+            break;
+        case KEYCODE_NUMPAD_0:
+            code = "0";
+            break;
+        case KEYCODE_NUMPAD_1:
+            code = "1";
+            break;
+        case KEYCODE_NUMPAD_2:
+            code = "2";
+            break;
+        case KEYCODE_NUMPAD_3:
+            code = "3";
+            break;
+        case KEYCODE_NUMPAD_4:
+            code = "4";
+            break;
+        case KEYCODE_NUMPAD_5:
+            code = "5";
+            break;
+        case KEYCODE_NUMPAD_6:
+            code = "6";
+            break;
+        case KEYCODE_NUMPAD_7:
+            code = "7";
+            break;
+        case KEYCODE_NUMPAD_8:
+            code = "8";
+            break;
+        case KEYCODE_NUMPAD_9:
+            code = "9";
+            break;
+        default:
+            break;
+        }
+        return  code;
     }
 
     /**
@@ -788,11 +848,7 @@ class TermKeyListener {
             break;
         case KeyEvent.KEYCODE_SHIFT_LEFT:
         case KeyEvent.KEYCODE_SHIFT_RIGHT:
-            if (allowToggle) {
-                mCapKey.onRelease();
-                updateCursorMode();
-            }
-            break;
+            return;
 
         case KEYCODE_CTRL_LEFT:
         case KEYCODE_CTRL_RIGHT:
@@ -813,7 +869,30 @@ class TermKeyListener {
         return mAltKey.isActive();
     }
 
+    public int getAltKeyState() {
+        return mAltKey.mState;
+    }
+
+    public void setAltKeyState(int state) {
+        mAltKey.mState = state;
+        updateCursorMode();
+    }
+
+    public int getControlKeyState() {
+        return mControlKey.mState;
+    }
+
+    public void setControlKeyState(int state) {
+        mControlKey.mState = state;
+        updateCursorMode();
+    }
+
     public boolean isCtrlActive() {
         return mControlKey.isActive();
+    }
+
+    private static boolean mUseCookedIme = true;
+    static public void setUseCookedIme(boolean flag) {
+        mUseCookedIme = flag;
     }
 }

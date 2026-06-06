@@ -1,114 +1,201 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="jackpal.androidterm">
-    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <uses-permission android:name="android.permission.INTERNET" />
+          xmlns:tools="http://schemas.android.com/tools"
+    android:installLocation="internalOnly">
+
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false"/>
+
+    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.ACCESS_SUPERUSER" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="com.android.vending.BILLING" />
-    <application android:icon="@drawable/ic_launcher"
-                android:label="@string/application_termvim"
-                android:hardwareAccelerated="true"
-                android:theme="@style/Theme">
-        <activity android:name="Term"
-                android:launchMode="singleTask"
-                android:configChanges="keyboard|keyboardHidden|orientation"
-                android:windowSoftInputMode="adjustResize|stateAlwaysVisible">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <category android:name="android.intent.category.MULTIWINDOW_LAUNCHER" />
-            </intent-filter>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"
+        tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.ACCESS_SUPERUSER"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission
+        android:name="android.permission.BATTERY_STATS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.CHANGE_CONFIGURATION"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.DUMP"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.GET_APP_OPS_STATS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.INTERACT_ACROSS_USERS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.READ_LOGS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.SET_DEBUG_APP"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.SIGNAL_PERSISTENT_PROCESSES"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="ProtectedPermissions,QueryAllPackagesPermission"/>
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ProtectedPermissions,ScopedStorage"/>
+
+    <queries>
+        <package android:name="com.android.documentsui" />
+        <package android:name="com.google.android.apps.docs" />
+        <package android:name="com.google.android.documentsui" />
+        <package android:name="com.amazon.cloud9" />
+        <package android:name="com.box.android" />
+        <package android:name="com.dropbox.android" />
+        <package android:name="com.microsoft.skydrive" />
+        <package android:name="com.microsoft.emmx" />
+        <package android:name="com.nextcloud.client" />
+        <package android:name="com.owncloud.android" />
+        <package android:name="com.ttxapps.dropsync" />
+        <package android:name="org.mozilla.firefox" />
+        <package android:name="org.mozilla.firefox_beta" />
+    </queries>
+
+    <application
+        android:enableOnBackInvokedCallback="true"
+        android:extractNativeLibs="true"
+        android:resizeableActivity="true"
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true"
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_descriptor"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/application_terminal"
+        android:theme="@style/App_Theme_Light"
+        tools:ignore="DataExtractionRules">
+        <activity
+            android:name=".ExtraContents"
+            android:exported="false"
+            android:label="@string/title_activity_extra_contents" >
         </activity>
-        <activity-alias android:name="TermInternal"
-                android:targetActivity="Term"
-                android:exported="false">
-            <intent-filter>
-                <action android:name="jackpal.androidterm.private.OPEN_NEW_WINDOW" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="jackpal.androidterm.private.SWITCH_WINDOW" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity-alias>
-        <activity android:name="RemoteInterface"
-                android:excludeFromRecents="true">
-            <intent-filter>
-                <action android:name="jackpal.androidterm.OPEN_NEW_WINDOW" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.EDIT" />
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.PICK" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/*" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.EDIT" />
-                <action android:name="android.intent.action.SEND" />
-                <action android:name="android.intent.action.PICK" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="application/octet-stream" />
-                <data android:mimeType="application/javascript" />
-                <data android:mimeType="application/json" />
-                <data android:mimeType="application/atom+xml" />
-                <data android:mimeType="application/soap+xm" />
-                <data android:mimeType="application/xhtml+xml" />
-                <data android:mimeType="application/xml-dtd" />
-                <data android:mimeType="application/x-latex" />
-                <data android:mimeType="application/*xml" />
-                <data android:mimeType="application/ecmascript" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="com.googlecode.android_scripting.action.EDIT_SCRIPT" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-        <activity android:name="TermPreferences"
-                android:theme="@style/Theme.Holo.Light"
-                android:label="@string/preferences"/>
-        <activity android:name="WindowList"
-                android:theme="@style/Theme.Holo.Light"
-                android:label="@string/window_list" />
-        <provider
-            android:name="com.droidvim.storage.LocalStorageProvider"
-            android:authorities="com.droidvim.storage.documents"
-            android:grantUriPermissions="true"
+        <activity
+            android:name=".Term"
             android:exported="true"
-            android:permission="android.permission.MANAGE_DOCUMENTS"
-            android:enabled="@bool/atLeastKitKat">
+            android:configChanges="keyboard|keyboardHidden|orientation"
+            android:immersive="false"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize|stateAlwaysVisible">
             <intent-filter>
-                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.LAUNCHER"/>
+                <category android:name="android.intent.category.MULTIWINDOW_LAUNCHER"/>
             </intent-filter>
-        </provider>
-        <!-- This activity alias is added so that GET_CONTENT intent-filter
-        <activity-alias android:name="com.droidvim.storage.HomePicker"
-                android:targetActivity="Term"
-                android:enabled="@bool/atMostJellyBeanMR2"
-                android:exported="false">
+        </activity>
+
+        <activity-alias
+            android:name=".TermInternal"
+            android:exported="false"
+            android:targetActivity=".Term">
             <intent-filter>
-                <action android:name="android.intent.action.GET_CONTENT" />
-                <category android:name="android.intent.category.OPENABLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="*/*" />
+                <action android:name="${applicationId}.shiftrot.androidterm.private.OPEN_NEW_WINDOW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="${applicationId}.shiftrot.androidterm.private.SWITCH_WINDOW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </activity-alias>
-         can be disabled for builds on API level 19 and higher. -->
-        <service android:name="TermService" >
+
+        <activity
+            android:name=".RemoteInterface"
+            android:exported="true"
+            android:excludeFromRecents="false">
+            <intent-filter tools:ignore="AppLinkUrlError">
+                <action android:name="android.intent.action.VIEW"/>
+                <action android:name="android.intent.action.EDIT"/>
+                <action android:name="android.intent.action.SEND"/>
+                <action android:name="android.intent.action.PICK"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+
+                <data android:mimeType="text/*"/>
+            </intent-filter>
+            <intent-filter tools:ignore="AppLinkUrlError">
+                <action android:name="android.intent.action.VIEW"/>
+                <action android:name="android.intent.action.EDIT"/>
+                <action android:name="android.intent.action.SEND"/>
+                <action android:name="android.intent.action.PICK"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+
+                <data android:mimeType="application/*xml"/>
+                <data android:mimeType="application/atom+xml"/>
+                <data android:mimeType="application/dxf"/>
+                <data android:mimeType="application/ecmascript"/>
+                <data android:mimeType="application/javascript"/>
+                <data android:mimeType="application/json"/>
+                <data android:mimeType="application/*log*"/>
+                <data android:mimeType="application/octet-stream"/>
+                <data android:mimeType="application/soap+xm"/>
+                <data android:mimeType="application/x-caramel"/>
+                <data android:mimeType="application/x-klaunch"/>
+                <data android:mimeType="application/x-latex"/>
+                <data android:mimeType="application/x-sh"/>
+                <data android:mimeType="application/x-tcl"/>
+                <data android:mimeType="application/x-tex*"/>
+                <data android:mimeType="application/x-troff*"/>
+                <data android:mimeType="application/xhtml+xml"/>
+                <data android:mimeType="application/xml*"/>
+                <data android:mimeType="application/zip"/>
+                <data android:mimeType="application/x-zip-compressed"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.googlecode.android_scripting.action.EDIT_SCRIPT"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".TermPreferences"
+            android:exported="false"
+            android:label="@string/preferences" />
+        <activity
+            android:name=".WebViewActivity"
+            android:exported="false"
+            android:label="Local HTML Viewer"/>
+
+        <service android:name=".TermService"
+            android:foregroundServiceType="specialUse"
+            android:permission="android.permission.FOREGROUND_SERVICE_TYPE_SPECIAL_USE"
+            android:exported="false">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                 android:value="Prevents this app from being forced to close in the background."/>
             <intent-filter>
                 <action android:name="jackpal.androidterm.action.START_TERM.v1"/>
                 <category android:name="android.intent.category.DEFAULT"/>
             </intent-filter>
         </service>
+
         <meta-data
-            android:name="com.sec.android.support.multiwindow"
-            android:value="true">
-        </meta-data>
+            android:name="android.max_aspect"
+            android:value="ratio_float"/>
     </application>
+
 </manifest>

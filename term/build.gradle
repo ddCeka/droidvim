@@ -1,26 +1,43 @@
-import java.text.SimpleDateFormat
-
 apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion "25.0.2"
+    compileSdkVersion versions.compileSdk
 
     defaultConfig {
-        applicationId "com.droidvim"
-        minSdkVersion 16
-        targetSdkVersion 25
+        minSdkVersion versions.minSdk
+        targetSdkVersion versions.targetSdk
+        buildConfigField "String", "TARGET_SDK", String.format('"%s"', versions.targetSdk)
+        multiDexEnabled true
+    }
 
-        versionName = "1.0.0"
-        versionCode 1
+    defaultConfig {
+        versionName versions.versionName
+        versionCode versions.versionCode
 
         buildConfigField "String", "WHATS_NEW", '""'
-        buildConfigField "String", "BASE64_PUBLIC_KEY", String.format('"%s"', file('base64-public-key.txt').getText().replaceAll("[\r\n].*", ""));
+        buildConfigField "String", "BASE64_PUBLIC_KEY", String.format('"%s"', file('base64-public-key.txt').getText().replaceAll("[\r\n].*", ""))
 
+    }
+
+    defaultConfig {
         externalNativeBuild {
             ndkBuild {
-                abiFilters 'armeabi', 'x86'
+                arguments '-C', 'src/main', '-j', Runtime.runtime.availableProcessors() + ''
+                if (abiArm) abiFilters 'arm64-v8a', 'armeabi-v7a'
+                if (abiX86) abiFilters 'x86_64', 'x86'
             }
+        }
+
+        vectorDrawables.useSupportLibrary = true
+    }
+
+    signingConfigs {
+        release {
+            storeFile = file("keystore/keystore_droidvim.jks")
+            storePassword System.getenv("SIGNING_STORE_PASSWORD")
+            keyAlias System.getenv("SIGNING_KEY_ALIAS")
+            keyPassword System.getenv("SIGNING_KEY_PASSWORD")
         }
     }
 
@@ -30,26 +47,110 @@ android {
         }
     }
 
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = versions.sourceCompatibility
+        targetCompatibility = versions.targetCompatibility
+    }
+
+    kotlinOptions {
+        jvmTarget = versions.jvmTarget
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
     buildTypes {
         release {
             minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk {
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
+            signingConfig signingConfigs.release
         }
     }
 
-    productFlavors {
-        droidvim {
-            setApplicationId("com.droidvim")
-            versionName = new SimpleDateFormat("yyyy.M.dd.HH.mm.ss").format(new Date())+".dev"
+    splits {
+        abi {
+            enable abiSplits
+            reset()
+            if (abiArm) include 'arm64-v8a', 'armeabi-v7a'
+            if (abiX86) include 'x86_64', 'x86'
+            universalApk buildUniversalApk
         }
     }
+
+    flavorDimensions = ["appType"]
+    productFlavors {
+        terminal {
+            dimension "appType"
+        }
+        droidvim {
+            dimension "appType"
+            applicationId "com.droidvim"
+        }
+    }
+
+    sourceSets {
+        terminal {
+            res.srcDirs += ['src/terminal-res/res']
+            jniLibs.srcDirs += ['src/term-bash/jniLibs', 'src/cmd-tools/jniLibs']
+            jniLibs.srcDirs += ['src/zip/jniLibs', 'src/unzip/jniLibs']
+            jniLibs.srcDirs += ['src/proot/jniLibs']
+        }
+        droidvim {
+            res.srcDirs += ['src/vim/res']
+            jniLibs.srcDirs += ['src/term-bash/jniLibs', 'src/cmd-tools/jniLibs']
+            jniLibs.srcDirs += ['src/zip/jniLibs', 'src/unzip/jniLibs']
+            jniLibs.srcDirs += ['src/proot/jniLibs']
+            jniLibs.srcDirs += ['src/vim/jniLibs']
+        }
+    }
+    namespace 'jackpal.androidterm'
 }
 
 dependencies {
-    compile "com.android.support:appcompat-v7:25.3.1"
-    compile 'com.android.support:support-annotations:25.3.1'
-    compile "com.android.support:support-v4:25.3.1"
-    compile project(':emulatorview')
-    compile project(':libtermexec')
+    implementation 'androidx.multidex:multidex:2.0.1'
+}
+
+dependencies {
+    implementation "androidx.core:core-ktx:${versions.core_ktx}"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${versions.kotlin}"
+}
+
+// Libraries which can be re-used in other modules should use the `api` keyword.
+// This way they can be shared with dependent feature modules.
+dependencies {
+    api "androidx.annotation:annotation:${versions.annotation}"
+    api "androidx.appcompat:appcompat:${versions.appcompat}"
+    api "androidx.constraintlayout:constraintlayout:${versions.constraintlayout}"
+    api "androidx.core:core-ktx:${versions.core_ktx}"
+    api "androidx.documentfile:documentfile:${versions.documentfile}"
+    api "androidx.drawerlayout:drawerlayout:${versions.drawerlayout}"
+    api "androidx.fragment:fragment-ktx:${versions.fragment_ktx}"
+    api "androidx.preference:preference-ktx:${versions.preference}"
+    api "androidx.vectordrawable:vectordrawable:${versions.vectordrawable}"
+    api "androidx.webkit:webkit:${versions.webkit}"
+    api "com.google.android.material:material:${versions.material}"
+}
+
+dependencies {
+    implementation 'org.apache.commons:commons-compress:1.21'
+    implementation 'commons-io:commons-io:2.13.0'
+    implementation 'org.tukaani:xz:1.8'
+}
+
+dependencies {
+    implementation project(':emulatorview')
+    implementation project(':libtermexec')
 }
 

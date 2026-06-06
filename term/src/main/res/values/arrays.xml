@@ -34,6 +34,14 @@
         <item>Portrait</item>
     </string-array>
 
+    <string-array name="entries_theme_preference">
+        <item>Light theme</item>
+        <item>Dark theme</item>
+        <item>Light theme (API26)</item>
+        <item>Dark theme (API26)</item>
+        <item>Auto</item>
+    </string-array>
+
     <string-array name="entries_cursorblink_preference">
         <item>Non-blinking cursor</item>
         <item>Blinking cursor</item>
@@ -43,6 +51,13 @@
         <item>Rectangle</item>
         <item>Underline</item>
         <item>Vertical bar</item>
+    </string-array>
+
+    <string-array name="entries_alt_cursorstyle_preference">
+        <item>Rectangle</item>
+        <item>Underline</item>
+        <item>Rectangle + Blink</item>
+        <item>Underline + Blink</item>
     </string-array>
 
     <string-array name="entries_fontsize_preference">
@@ -75,6 +90,7 @@
 
     <string-array name="entries_ambiwidth_preference">
         <item>1</item>
+        <item>2 (Vim based)</item>
         <item>2</item>
     </string-array>
 
@@ -97,45 +113,49 @@
         <item>Underline</item>
         <item>Autodetect</item>
         <item>ATOK</item>
-        <item>Google IME</item>
+        <item>Google</item>
         <item>Default</item>
     </string-array>
 
     <string-array name="entries_actionbar_icon_preference">
-        <!--<item>Sends ESC to terminal</item>-->
-        <!--<item>Sends CTRL to terminal</item>-->
-        <!--<item>Sends TAB to terminal</item>-->
-        <!--<item>Create Window</item>-->
-        <item>Toogle drawer</item>
         <item>Toggle soft keyboard</item>
-        <item>Choose input method</item>
+        <item>One-line text box</item>
+        <item>Toggle \"Command input mode\"/\"Normal Input mode\"</item>
+        <item>Toggle function bar</item>
+        <item>Show/Hide function bar</item>
+        <item>Toggle function bar cursor button direction"</item>
+        <item>Toogle drawer</item>
+        <item>Voice input</item>
         <item>Paste</item>
-        <!--<item>Sends i from terminal</item>-->
-        <!--<item>Sends : from terminal</item>-->
-        <!--<item>Sends / from terminal</item>-->
+        <item>Language switch (Shift+Space)</item>
+        <item>Language switch (Alt+Space)</item>
+        <item>Sends &lt;C-^&gt; (iminsert)</item>
         <item>IME shortcut</item>
-        <item>Direct input : password</item>
-        <item>Alphanumeric : URI</item>
-        <item>Direct input : password\n(Google Japanese input)</item>
-        <item>Quit Vim</item>
-        <!--<item>None</item>-->
+        <item>Choose input method</item>
+        <item>Reset font scale</item>
+        <item>Orientation</item>
+        <item>Quit</item>
+        <item>Sends ESC from terminal</item>
+        <item>Sends : from terminal</item>
+        <item>Sends / from terminal</item>
+        <item>None</item>
     </string-array>
 
     <string-array name="entries_backaction_preference">
         <item>Closes all terminal windows</item>
         <item>Closes this terminal window only</item>
-        <item>Closes activity, leaving sessions running</item>
+        <item>Default</item>
         <item>Sends ESC to terminal</item>
-        <item>Sends TAB to terminal</item>
         <item>Toggle soft keyboard</item>
+        <item>Android Back Button</item>
     </string-array>
 
     <string-array name="entries_vim_backaction_preference">
-        <item>Quit Vim</item>
-        <item>Closes activity, leaving sessions running</item>
+        <item>Closes this terminal window</item>
+        <item>Default</item>
         <item>Sends ESC to terminal</item>
-        <item>Sends TAB to terminal</item>
         <item>Toggle soft keyboard</item>
+        <item>Android Back Button</item>
     </string-array>
 
     <string-array name="entries_controlkey_preference">
@@ -161,7 +181,7 @@
     </string-array>
 
     <string-array name="entries_ime_preference">
-        <item>Character-based</item>
+        <item>Raw</item>
         <item>Word-based</item>
     </string-array>
 
@@ -191,15 +211,54 @@
 
     <string-array name="entries_ime_shortcuts_action_preference">
         <item>Toggle softkeyboard</item>
-        <item>Direct input : Password</item>
-        <item>Alphanumeric : URI</item>
-        <item>Direct input : Password\n(Google Japanese input)</item>
+        <item>Toggle \"Command input mode\"/\"Normal input mode\"</item>
+        <item>One-line text box</item>
+        <item>language switch (Shift+Space)</item>
+        <item>language switch (Alt+Space)</item>
+        <item>&lt;C-^&gt; (Vim iminsert)</item>
     </string-array>
 
     <string-array name="entries_ime_inputtype_preference">
-        <item>Normal</item>
-        <item>Direct input : Password</item>
-        <item>Alphanumeric : URI</item>
-        <item>Direct input : Password\n(Google Japanese input)</item>
+        <item>Direct input : TYPE_TEXT_VARIATION_PASSWORD</item>
+        <item>Direct input : TYPE_TEXT_VARIATION_URI</item>
+        <item>Default</item>
+        <item>Normal input : TYPE_NULL</item>
+        <item>Normal input : TYPE_CLASS_TEXT</item>
     </string-array>
+
+    <string-array name="entries_vi_cooperative_mode_preference">
+        <item>Disable</item>
+        <item>Soft keyboard</item>
+        <item>Physical keyboard</item>
+        <item>Soft keyboard/Physical keyboard</item>
+    </string-array>
+
+    <string-array name="entries_app_filepicker_preference">
+        <item>Hide</item>
+        <item>Content picker</item>
+        <item>Application</item>
+    </string-array>
+
+    <string-array name="entries_app_button_preference">
+        <item>Hide</item>
+        <item>Application</item>
+    </string-array>
+
+    <string-array name="entries_html_viewer_mode_preference">
+        <item>Internal browser</item>
+        <item>Default browser</item>
+    </string-array>
+
+    <string-array name="entries_cursor_direction_ctrl_mode_preference">
+        <item>Do nothing</item>
+        <item>Synchronize with Ctrl button</item>
+        <item>While Ctrl button is active</item>
+        <item>While Ctrl button is locked</item>
+    </string-array>
+
+    <string-array name="entries_scoped_storage_home_path_mode_preference">
+        <item>Default ($APPFILES/home)</item>
+        <item>Internal Storage ($APPEXTHOME)</item>
+    </string-array>
+
 </resources>

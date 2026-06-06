@@ -17,12 +17,13 @@
 package jackpal.androidterm;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.DisplayMetrics;
 
+import androidx.preference.PreferenceManager;
 import jackpal.androidterm.emulatorview.ColorScheme;
 import jackpal.androidterm.emulatorview.EmulatorView;
 import jackpal.androidterm.emulatorview.TermSession;
-
 import jackpal.androidterm.util.TermSettings;
 
 public class TermView extends EmulatorView {
@@ -37,19 +38,26 @@ public class TermView extends EmulatorView {
 
         setTextSize(settings.getFontSize());
         setTextLeading(settings.getFontLeading());
-        setTextFont(settings.getFontFile());
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(this.getContext());
+        setTextFont(sp.getString(TermPreferences.FONT_FILENAME, null));
         setAmbiWidth(settings.getAmbiWidth());
         setHwAcceleration(settings.getHwAcceleration());
         setUseCookedIME(settings.useCookedIME());
+        setUseDirectCookedIME(settings.useDirectCookedIME());
+        setCursorColor(settings.getCursorColor());
         setColorScheme(scheme);
-        setBackKeyCharacter(settings.getBackKeyCharacter());
         setAltSendsEsc(settings.getAltSendsEscFlag());
+        setSupport8bitMeta(settings.getAltUses8bitMSB());
         setIgnoreXoff(settings.getIgnoreXoff());
+        setRestartInput(settings.getRestartIME());
         setControlKeyCode(settings.getControlKeyCode());
         setFnKeyCode(settings.getFnKeyCode());
         setTermType(settings.getTermType());
         setMouseTracking(settings.getMouseTrackingFlag());
         setPreIMEShortcutsAction(settings.getImeShortcutsAction());
+        setViCooperativeMode(settings.getViCooperativeMode());
+        setForceNormalInputModeToPhysicalKeyboard(settings.getForceNormalInputModeToPhysicalKeyboard());
+        SyncFileObserver.setCloudStorageHashCheckMode(settings.getCloudStorageCheck());
     }
 
     public void updatePrefs(TermSettings settings) {

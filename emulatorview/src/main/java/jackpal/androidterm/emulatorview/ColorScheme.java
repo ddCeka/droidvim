@@ -32,14 +32,23 @@ package jackpal.androidterm.emulatorview;
  */
 
 public class ColorScheme {
-    private int foreColor;
-    private int backColor;
+    private final int foreColor;
+    private final int backColor;
     private int cursorForeColor;
     private int cursorBackColor;
-    final private static int sDefaultCursorBackColor = 0xff808080;
+    private static int sDefaultCursorBackColor = 0xff808080;
 
-    private void setDefaultCursorColors() {
-        cursorBackColor = sDefaultCursorBackColor;
+    public static void setDefaultCursorColor(int color) {
+        sDefaultCursorBackColor = color;
+    }
+
+    public void setDefaultCursorColors() {
+        if (sDefaultCursorBackColor != 0) {
+            cursorBackColor = sDefaultCursorBackColor;
+        } else {
+            cursorBackColor = foreColor;
+        }
+
         // Use the foreColor unless the foreColor is too similar to the cursorBackColor
         int foreDistance = distance(foreColor, cursorBackColor);
         int backDistance = distance(backColor, cursorBackColor);

@@ -34,6 +34,14 @@
         <item>縦</item>
     </string-array>
 
+    <string-array name="entries_theme_preference">
+        <item>ライトテーマ</item>
+        <item>ダークテーマ</item>
+        <item>ライトテーマ (API26)</item>
+        <item>ダークテーマ (API26)</item>
+        <item>自動</item>
+    </string-array>
+
     <string-array name="entries_cursorblink_preference">
         <item>点滅しないカーソル</item>
         <item>点滅するカーソル</item>
@@ -43,6 +51,13 @@
         <item>四角</item>
         <item>下線</item>
         <item>縦線</item>
+    </string-array>
+
+    <string-array name="entries_alt_cursorstyle_preference">
+        <item>四角</item>
+        <item>下線</item>
+        <item>四角+点滅</item>
+        <item>下線+点滅</item>
     </string-array>
 
     <string-array name="entries_fontsize_preference">
@@ -92,45 +107,49 @@
         <item>アンダーライン</item>
         <item>自動選択</item>
         <item>ATOK</item>
-        <item>Google日本語入力</item>
+        <item>Google</item>
         <item>デフォルト</item>
     </string-array>
 
     <string-array name="entries_actionbar_icon_preference">
-        <!--<item>ターミナルにESCを送出</item>-->
-        <!--<item>ターミナルにCTRLを送出</item>-->
-        <!--<item>ターミナルにTABを送出</item>-->
-        <!--<item>ウィンドウ作成</item>-->
-        <item>ドロワーのトグル</item>
         <item>IMEのトグル</item>
-        <item>IMEの選択</item>
+        <item>一行テキスト入力</item>
+        <item>「コマンド入力モード」/「通常入力モード」のトグル</item>
+        <item>ファンクションバーのトグル</item>
+        <item>ファンクションバーを表示/非表示</item>
+        <item>ファンクションバーのカーソルキーの方向をトグル"</item>
+        <item>ドロワーのトグル</item>
+        <item>音声入力</item>
         <item>貼り付け</item>
-        <!--<item>ターミナルから i を送出</item>-->
-        <!--<item>ターミナルから : を送出</item>-->
-        <!--<item>ターミナルから / を送出</item>-->
-        <item>IMEショートカット</item>
-        <item>直接入力 : パスワード</item>
-        <item>英数入力 : URI</item>
-        <item>直接入力 : パスワード\n(Google日本語入力)</item>
-        <item>Vimを終了</item>
-        <!--<item>なし</item>-->
+        <item>言語切替 (Shift+Space)</item>
+        <item>言語切替 (Alt+Space)</item>
+        <item>&lt;C-^&gt; (iminsert)</item>
+        <item>IMEアクション</item>
+        <item>IMEの選択</item>
+        <item>フォントスケールのリセット</item>
+        <item>画面の向き</item>
+        <item>終了</item>
+        <item>ターミナルから ESC を送出</item>
+        <item>ターミナルから : を送出</item>
+        <item>ターミナルから / を送出</item>
+        <item>なし</item>
     </string-array>
 
     <string-array name="entries_backaction_preference">
         <item>すべてのターミナルウインドウを閉じる</item>
-        <item>このターミナルウインドウだけを閉じる</item>
-        <item>アクティビティを閉じ，セッションは実行を継続</item>
+        <item>現在のターミナルウインドウを閉じる</item>
+        <item>デフォルト</item>
         <item>ターミナルにESCを送出</item>
-        <item>ターミナルにTABを送出</item>
         <item>IMEのトグル</item>
+        <item>AndroidのBackボタン</item>
     </string-array>
 
     <string-array name="entries_vim_backaction_preference">
-        <item>Vimを終了</item>
-        <item>アクティビティを閉じ，セッションは実行を継続</item>
+        <item>現在のターミナルウインドウを閉じる</item>
+        <item>デフォルト</item>
         <item>ターミナルにESCを送出</item>
-        <item>ターミナルにTABを送出</item>
         <item>IMEのトグル</item>
+        <item>AndroidのBackボタン</item>
     </string-array>
 
     <string-array name="entries_controlkey_preference">
@@ -156,7 +175,7 @@
     </string-array>
 
     <string-array name="entries_ime_preference">
-        <item>文字ベース</item>
+        <item>Raw</item>
         <item>単語ベース</item>
     </string-array>
 
@@ -186,15 +205,54 @@
 
     <string-array name="entries_ime_shortcuts_action_preference">
         <item>IMEのトグル</item>
-        <item>直接入力 : パスワード</item>
-        <item>英数入力 : URI</item>
-        <item>直接入力 : パスワード\n(Google日本語入力)</item>
+        <item>「コマンド入力モード」/「通常入力モード」のトグル</item>
+        <item>一行テキスト入力</item>
+        <item>言語切替 (Shift+Space)</item>
+        <item>言語切替 (Alt+Space)</item>
+        <item>&lt;C-^&gt; (Vim iminsert)</item>
     </string-array>
 
     <string-array name="entries_ime_inputtype_preference">
-        <item>通常入力</item>
-        <item>直接入力 : パスワード</item>
-        <item>英数入力 : URI</item>
-        <item>直接入力 : パスワード\n(Google日本語入力)</item>
+        <item>直接入力 : TYPE_TEXT_VARIATION_PASSWORD</item>
+        <item>直接入力 : TYPE_TEXT_VARIATION_URI</item>
+        <item>デフォルト</item>
+        <item>通常入力 : TYPE_NULL</item>
+        <item>通常入力 : TYPE_CLASS_TEXT</item>
     </string-array>
+
+    <string-array name="entries_vi_cooperative_mode_preference">
+        <item>無効</item>
+        <item>ソフトキーボード</item>
+        <item>物理キーボード</item>
+        <item>ソフトキーボード/物理キーボード</item>
+    </string-array>
+
+    <string-array name="entries_app_filepicker_preference">
+        <item>非表示</item>
+        <item>コンテントピッカー</item>
+        <item>アプリ起動</item>
+    </string-array>
+
+    <string-array name="entries_app_button_preference">
+        <item>非表示</item>
+        <item>アプリ起動</item>
+    </string-array>
+
+    <string-array name="entries_html_viewer_mode_preference">
+        <item>内部ブラウザ</item>
+        <item>デフォルトブラウザ</item>
+    </string-array>
+
+    <string-array name="entries_cursor_direction_ctrl_mode_preference">
+        <item>何もしない</item>
+        <item>Ctrlボタンと同期</item>
+        <item>Ctrlボタンがアクティブな間</item>
+        <item>Ctrlボタンがロックモードの間</item>
+    </string-array>
+
+    <string-array name="entries_scoped_storage_home_path_mode_preference">
+        <item>デフォルト ($APPFILES/home)</item>
+        <item>内部ストレージ ($APPEXTHOME)</item>
+    </string-array>
+
 </resources>

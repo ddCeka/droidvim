@@ -16,8 +16,6 @@
 
 package jackpal.androidterm.emulatorview;
 
-import jackpal.androidterm.emulatorview.compat.AndroidCompat;
-
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -33,17 +31,16 @@ import android.text.TextPaint;
 class Bitmap4x8FontRenderer extends BaseTextRenderer {
     private final static int kCharacterWidth = 4;
     private final static int kCharacterHeight = 8;
-    private Bitmap mFont;
+    private final Bitmap mFont;
     private int mCurrentForeColor;
     private int mCurrentBackColor;
     private float[] mColorMatrix;
-    private Paint mPaint;
+    private final Paint mPaint;
     private static final float BYTE_SCALE = 1.0f / 255.0f;
 
     public Bitmap4x8FontRenderer(Resources resources, ColorScheme scheme) {
         super(scheme);
-        int fontResource = AndroidCompat.SDK <= 3 ? R.drawable.atari_small
-                : R.drawable.atari_small_nodpi;
+        int fontResource = R.drawable.atari_small_nodpi;
         mFont = BitmapFactory.decodeResource(resources,fontResource);
         mPaint = new Paint();
         mPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC_IN));

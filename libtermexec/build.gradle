@@ -1,28 +1,19 @@
-buildscript {
-    repositories {
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:2.3.0'
-    }
-}
 apply plugin: 'com.android.library'
 
-repositories {
-    jcenter()
-}
-
 android {
-    compileSdkVersion 25
-    buildToolsVersion "25.0.2"
+    compileSdkVersion versions.compileSdk
 
     defaultConfig {
-        minSdkVersion 16
-        targetSdkVersion 25
+        minSdkVersion versions.minSdk
+        targetSdkVersion versions.targetSdk
+    }
 
+    defaultConfig {
         externalNativeBuild {
             ndkBuild {
-                abiFilters 'armeabi', 'x86'
+                arguments '-C', 'src/main', '-j', Runtime.runtime.availableProcessors() + ''
+                if (abiArm) abiFilters 'arm64-v8a', 'armeabi-v7a'
+                if (abiX86) abiFilters 'x86_64', 'x86'
             }
         }
     }
@@ -33,28 +24,48 @@ android {
         }
     }
 
+    packagingOptions {
+        jniLibs.useLegacyPackaging = true
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-}
 
-// by default recent plugin version does not copy any AIDL files "to avoid publishing too much"
-android.libraryVariants.all { variant ->
-    Sync packageAidl = project.tasks.create("addPublic${variant.name.capitalize()}Aidl", Sync) { sync ->
-        from "$project.projectDir/src/main/aidl/"
-        into "$buildDir/intermediates/bundles/${variant.dirName}/aidl/"
+    compileOptions {
+        sourceCompatibility = versions.sourceCompatibility
+        targetCompatibility = versions.targetCompatibility
     }
 
-    variant.javaCompile.dependsOn packageAidl
+    splits {
+        abi {
+            enable abiSplits
+            reset()
+            if (abiArm) include 'arm64-v8a', 'armeabi-v7a'
+            if (abiX86) include 'x86_64', 'x86'
+            universalApk buildUniversalApk
+        }
+    }
+    namespace 'jackpal.androidterm.libtermexec'
+    buildFeatures {
+        aidl true
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+}
 
-    compile "com.android.support:appcompat-v7:25.3.1"
-    compile 'com.android.support:support-annotations:25.3.1'
-    compile "com.android.support:support-v4:25.3.1"
+dependencies {
+    implementation "androidx.annotation:annotation:${versions.annotation}"
+    implementation "androidx.appcompat:appcompat:${versions.appcompat}"
 }
